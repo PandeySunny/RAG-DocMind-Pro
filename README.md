@@ -1,53 +1,86 @@
-# ⬡ RAG Studio — Enterprise Document Intelligence
+# ⬡ RAG Studio — Enterprise Document Intelligence & Private Knowledge Assistant
 
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.111.0-009688.svg?style=flat-square&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
 [![Python](https://img.shields.io/badge/Python-3.11+-3776AB.svg?style=flat-square&logo=python&logoColor=white)](https://www.python.org)
 [![React](https://img.shields.io/badge/React-18.2-61DAFB.svg?style=flat-square&logo=react&logoColor=black)](https://react.dev)
 [![Vite](https://img.shields.io/badge/Vite-5.4-646CFF.svg?style=flat-square&logo=vite&logoColor=white)](https://vitejs.dev)
-[![License](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](LICENSE)
+[![Privacy First](https://img.shields.io/badge/Security-Session--Isolated%20%7C%20Zero--Retention-green.svg?style=flat-square)](https://github.com)
 [![LLM Support](https://img.shields.io/badge/LLM-Groq%20%7C%20OpenAI%20%7C%20Anthropic-orange?style=flat-square)](https://groq.com)
+[![License](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](LICENSE)
 
-**RAG Studio** is a production-grade, full-stack **Retrieval-Augmented Generation (RAG)** platform designed for conversational intelligence and semantic discovery across multi-format enterprise document collections.
+**RAG Studio** is a production-ready, full-stack **Retrieval-Augmented Generation (RAG)** platform designed for conversational intelligence, vector-grounded question answering, and semantic search across private document repositories.
 
-Built with an asynchronous **FastAPI** backend and an **Anthropic Claude / Google Gemini** inspired **React** user interface, RAG Studio bridges vector similarity search, multi-provider LLM orchestration, and verifiable source citation grounding.
+Engineered with an asynchronous **FastAPI** backend and an **Anthropic Claude & Google Gemini** inspired **React** web interface, RAG Studio provides multi-tenant session isolation, verifiable source citation grounding, and an ephemeral zero-retention lifecycle.
 
 ---
 
 ## 📑 Table of Contents
 
 - [Key Capabilities](#-key-capabilities)
+- [Multi-Tenant Privacy & Auto-Purge Lifecycle](#-multi-tenant-privacy--auto-purge-lifecycle)
 - [System Architecture](#-system-architecture)
 - [Offline vs. Cloud Matrix](#-offline-vs-cloud-matrix)
 - [Technology Stack](#-technology-stack)
-- [Project Structure](#-project-structure)
+- [Project Directory Layout](#-project-directory-layout)
 - [Getting Started](#-getting-started)
   - [Prerequisites](#prerequisites)
   - [1. Backend Setup](#1-backend-setup)
   - [2. Frontend Setup](#2-frontend-setup)
-- [Environment Configuration](#-environment-configuration)
+- [Environment Variables](#-environment-variables)
 - [API Reference](#-api-reference)
 - [Deployment Guide](#-deployment-guide)
-- [Roadmap & Enhancements](#-roadmap--enhancements)
 - [License](#-license)
 
 ---
 
 ## ⚡ Key Capabilities
 
+* **Multi-Tenant Session Isolation**: Cryptographic client session IDs (`X-Session-ID`) ensure complete data segregation. User A can never see, access, or query User B's documents.
+* **Ephemeral Zero-Retention Lifecycle**:
+  * **On-Demand Wipe**: One-click **"Purge & Reset Session"** immediately deletes all uploaded files, SQLite chunks, and vector embeddings.
+  * **Auto-TTL Sweeper**: Background thread automatically cleans up inactive sessions and orphaned files older than 2 hours.
+  * **Server Shutdown Purge**: When the backend server is stopped or restarted, all uploaded temporary files and memory vectors are permanently destroyed.
 * **Multi-Format Ingestion**: Native extraction and parsing for `.pdf`, `.docx`, `.txt`, `.md`, `.csv`, and `.json`.
-* **Sliding-Window Chunking**: Intelligent token-aware text segmentation with configurable overlap to preserve contextual continuity.
+* **Sliding-Window Chunking**: Token-aware text segmentation with configurable overlap to preserve contextual continuity.
 * **Vector Similarity & Grounding**: Vector retrieval with Cosine Similarity ranking and granular confidence match scoring ($0-100\%$).
 * **Multi-Provider LLM Orchestration**:
   * **Groq** (`Llama-3-70B / 8B`) — Ultra-low latency inference.
   * **OpenAI** (`GPT-4o / GPT-3.5`) — High-accuracy general synthesis.
   * **Anthropic** (`Claude 3.5 Sonnet`) — Nuanced analytical reasoning.
   * **Context-Only Mode** — 100% offline fallback without external API dependencies.
-* **Verifiable Source Grounding**: Interactive citation drawer showing exact file source, chunk index, similarity score, and excerpt previews.
+* **Verifiable Source Grounding**: Interactive citation drawer showing exact file source, chunk index, similarity score bar, and excerpt previews.
 * **Enterprise UX / UI**:
   * Dual-theme system (*Cosmic Obsidian Dark* & *Warm Minimalist Light*).
   * Collapsible sidebar with real-time vector statistics and quick document search filtering.
   * Floating frosted glass input dock with active knowledge scope detection.
   * Rich Markdown renderer with code blocks and one-click clipboard copying.
+
+---
+
+## 🛡️ Multi-Tenant Privacy & Auto-Purge Lifecycle
+
+```
+[Browser Client A] ──(X-Session-ID: sess_abc)──┐
+                                               ├──► [FastAPI Backend]
+[Browser Client B] ──(X-Session-ID: sess_xyz)──┘         │
+                                                         ▼
+                                               [Session-Scoped DB & Vector Space]
+                                               ├─ Session ABC Docs & Embeddings (Private)
+                                               └─ Session XYZ Docs & Embeddings (Private)
+                                                         │
+                                  ┌──────────────────────┴──────────────────────┐
+                                  ▼                                             ▼
+                     [Manual "Purge Session"]                      [Auto-TTL / Server Shutdown]
+                     Immediate destruction of files,              Background daemon sweeps stale
+                     database rows, and embeddings.               sessions >2h & wipes files on exit.
+```
+
+1. **Client Generation**: The browser creates a cryptographically unique `session_id` (`crypto.randomUUID()`) stored in `sessionStorage`.
+2. **Strict Scoping**: SQLite queries and TF-IDF vector matrices partition indices strictly by `session_id`.
+3. **Guaranteed Ephemerality**:
+   * Users can wipe their session data on demand with **"Purge & Reset Session"**.
+   * Server shutdown hook cleans up all uploaded files from `data/uploads/`.
+   * Background TTL cleaner purges idle sessions after 2 hours.
 
 ---
 
@@ -58,14 +91,16 @@ Built with an asynchronous **FastAPI** backend and an **Anthropic Claude / Googl
                          (React 18 + Vite + Custom CSS)
                                        │
                                 [HTTP / REST]
+                                (X-Session-ID)
                                        │
                                        ▼
                               FASTAPI BACKEND
                      ┌─────────────────────────────────┐
                      │   Async Router & Lifespan App   │
                      │  - Health & Diagnostics         │
-                     │  - Document Indexing Queue      │
+                     │  - Session Document Ingestion   │
                      │  - Multi-turn Conversational RAG│
+                     │  - Ephemeral TTL Worker (Daemon)│
                      └────────────────┬────────────────┘
                                       │
             ┌─────────────────────────┴─────────────────────────┐
@@ -75,7 +110,7 @@ Built with an asynchronous **FastAPI** backend and an **Anthropic Claude / Googl
  ├───────────────────────┤                           ├────────────────────┤
  │ • PyPDF2 (PDF)        │                           │ • TF-IDF Matrix    │
  │ • python-docx (DOCX)  │                           │ • Cosine Distance  │
- │ • Text / CSV / JSON   │                           │ • Top-K Selection  │
+ │ • Text / CSV / JSON   │                           │ • Session Filter   │
  │ • Sliding Window Split│                           │ • Grounding Scorer │
  └──────────┬────────────┘                           └─────────┬──────────┘
             │                                                  │
@@ -85,7 +120,7 @@ Built with an asynchronous **FastAPI** backend and an **Anthropic Claude / Googl
  ├───────────────────────┤                           ├────────────────────┤
  │ • SQLite (Database)   │                           │ • Groq API         │
  │ • File Storage (data/)│                           │ • OpenAI API       │
- │ • State & Chunk IDs   │                           │ • Anthropic API    │
+ │ • Session Indexes     │                           │ • Anthropic API    │
  └───────────────────────┘                           │ • Offline Fallback │
                                                      └────────────────────┘
 ```
@@ -93,8 +128,6 @@ Built with an asynchronous **FastAPI** backend and an **Anthropic Claude / Googl
 ---
 
 ## 🔒 Offline vs. Cloud Matrix
-
-RAG Studio is built on a **privacy-first, resilient design**. Core ingestion, chunking, and similarity retrieval operate 100% locally:
 
 | Pipeline Step | Works Offline? | Requires API Key? | Compute Location |
 | :--- | :---: | :---: | :--- |
@@ -114,7 +147,7 @@ RAG Studio is built on a **privacy-first, resilient design**. Core ingestion, ch
 * **Framework**: [FastAPI](https://fastapi.tiangolo.com/) + [Uvicorn](https://www.uvicorn.org/)
 * **Vector Math & Embeddings**: [scikit-learn](https://scikit-learn.org/) (`TfidfVectorizer`), [NumPy](https://numpy.org/)
 * **Document Parsers**: `PyPDF2`, `python-docx`
-* **Database**: `SQLite3`
+* **Database**: `SQLite3` (Session-Indexed)
 * **LLM Clients**: `groq`, `openai`, `anthropic`
 
 ### Frontend
@@ -125,25 +158,25 @@ RAG Studio is built on a **privacy-first, resilient design**. Core ingestion, ch
 
 ---
 
-## 📂 Project Structure
+## 📂 Project Directory Layout
 
 ```
 .
 ├── backend/
-│   ├── main.py                 # FastAPI application, routing & lifespan handler
-│   ├── database.py             # SQLite schema, document & chunk CRUD operations
+│   ├── main.py                 # FastAPI application, session routing & shutdown cleaner
+│   ├── database.py             # SQLite schema, session-scoped CRUD & TTL cleaner
 │   ├── document_processing.py  # Multi-format parsers & sliding-window chunker
-│   ├── embeddings.py           # Vector space model & cosine similarity engine
+│   ├── embeddings.py           # Multi-tenant vector space model & cosine similarity engine
 │   └── search.py               # RAG prompt construction & LLM inference dispatch
 ├── src/                        # Frontend React Components
-│   ├── App.jsx                 # Application orchestrator, theme & toast provider
-│   ├── ChatArea.jsx            # Chat feed, hero starter cards & input dock
-│   ├── ChatMessage.jsx         # Markdown renderer, code copy action & avatar
-│   ├── DocumentItem.jsx        # Document card, file-type icons & chunk counter
+│   ├── App.jsx                 # Application orchestrator, theme & purge session modal
+│   ├── ChatArea.jsx            # Chat feed, hero starter cards & floating input dock
+│   ├── ChatMessage.jsx         # Rich markdown renderer, code copy action & avatar
+│   ├── DocumentItem.jsx        # Document card, file-type badges & chunk counter
 │   ├── Sidebar.jsx             # Knowledge manager, drag & drop zone, search bar
 │   ├── SourcePanel.jsx         # Grounding citations, relevance bars & excerpt viewer
 │   ├── StatusBadge.jsx         # Pulse indicator badge system
-│   ├── api.js                  # Asynchronous API client layer
+│   ├── api.js                  # Asynchronous API client with automatic session header
 │   ├── styles.css              # Enterprise Design System tokens & styles
 │   └── main.jsx                # React DOM root mounting
 ├── data/                       # Local vector indices & uploaded artifacts (ignored)
@@ -189,7 +222,7 @@ RAG Studio is built on a **privacy-first, resilient design**. Core ingestion, ch
    pip install -r requirements.txt
    ```
 
-4. **Configure environment variables** *(Optional for LLM synthesis)*:
+4. **Configure environment variables** *(Optional for AI answer synthesis)*:
    ```bash
    cp .env.example .env
    ```
@@ -201,7 +234,7 @@ RAG Studio is built on a **privacy-first, resilient design**. Core ingestion, ch
 
 5. **Start the API server**:
    ```bash
-   uvicorn main:app --host 127.0.0.1 --port 8000 --reload
+   py -X utf8 -m uvicorn main:app --host 127.0.0.1 --port 8000 --reload
    ```
    * Interactive OpenAPI Documentation: [http://localhost:8000/docs](http://localhost:8000/docs)
    * System Health: [http://localhost:8000/health](http://localhost:8000/health)
@@ -225,7 +258,7 @@ RAG Studio is built on a **privacy-first, resilient design**. Core ingestion, ch
 
 ---
 
-## 🔑 Environment Configuration
+## 🔑 Environment Variables
 
 Create a `.env` file in the root directory:
 
@@ -249,23 +282,27 @@ VITE_API_URL=http://127.0.0.1:8000
 
 ## 📡 API Reference
 
+All requests accept the `X-Session-ID` header to isolate operations per user session.
+
 ### Health & Diagnostics
 * **`GET /health`**  
-  Returns the active vector embedding model and LLM engine status.
+  Returns system status, active LLM provider, and multi-tenant isolation status.
 
 ### Document Management
 * **`GET /documents`**  
-  Returns a list of all indexed documents, chunk counts, and status flags.
+  Returns all documents indexed under the requester's session.
 * **`POST /upload-document`**  
-  `multipart/form-data` payload. Uploads a file, extracts text, chunks it, and generates vector indices.
+  `multipart/form-data` payload. Uploads a file, extracts text, chunks it, and indexes vector embeddings under the active session.
 * **`GET /documents/{id}`**  
-  Fetches status and metadata for a specific document.
+  Fetches status and metadata for a specific document in the session.
 * **`DELETE /documents/{id}`**  
-  Removes document from SQLite and purges associated vector index entries.
+  Permanently erases a document, its disk file, and its vector embeddings.
+* **`POST /session/reset`**  
+  Immediately destroys all uploaded files, SQLite chunks, and vector memory for the requester's session.
 
-### Semantic Search & Retrieval
+### Semantic Search & Conversational RAG
 * **`POST /search`**  
-  Performs similarity search against indexed vector space.
+  Performs similarity search strictly against the requester's session documents.
   ```json
   {
     "query": "What are the key financial highlights?",
@@ -274,9 +311,8 @@ VITE_API_URL=http://127.0.0.1:8000
   }
   ```
 
-### Conversational RAG
 * **`POST /chat`**  
-  Performs similarity search, injects grounded context into prompt template, and synthesizes answers using active LLM.
+  Executes full RAG: retrieves relevant chunks, injects context, and generates grounded answers using the active LLM.
   ```json
   {
     "question": "Summarize the project timeline.",
@@ -293,29 +329,17 @@ VITE_API_URL=http://127.0.0.1:8000
 
 ## 🌐 Deployment Guide
 
-### Frontend Deployment (Netlify / Vercel)
-The project includes a pre-configured [`netlify.toml`](./netlify.toml) file:
+### Frontend (Netlify / Vercel)
+The repository includes a [`netlify.toml`](./netlify.toml) pre-configured with Python 3.11 build settings:
 1. Connect your repository to **Netlify**.
 2. **Build Command**: `npm run build`
 3. **Publish Directory**: `dist`
-4. Set `VITE_API_URL` under **Site Settings** → **Environment Variables** pointing to your deployed backend URL.
+4. Set `VITE_API_URL` under **Site Settings** → **Environment Variables** pointing to your backend URL.
 
-### Backend Deployment (Render / Railway / Docker)
+### Backend (Render / Railway / Docker)
 1. Deploy as a Python Web Service.
 2. **Start Command**: `uvicorn main:app --host 0.0.0.0 --port $PORT`
-3. Configure `GROQ_API_KEY` or `OPENAI_API_KEY` in your provider's dashboard.
-
----
-
-## 🗺️ Roadmap & Enhancements
-
-- [x] Multi-format document chunking & vector search
-- [x] Dual-theme Claude / Gemini inspired interface
-- [x] Multi-turn conversation context management
-- [x] Granular relevance percentage scores & citations
-- [ ] Dense neural embeddings integration (`all-MiniLM-L6-v2` / `text-embedding-3-small`)
-- [ ] Persistent user authentication & multi-workspace support
-- [ ] Hybrid search (Dense Embeddings + BM25 Sparse Search)
+3. Configure `GROQ_API_KEY` or `OPENAI_API_KEY` in your hosting dashboard.
 
 ---
 
